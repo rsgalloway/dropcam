@@ -50,7 +50,7 @@ _API_BASE = "https://www.dropcam.com"
 _API_PATH = "api/v1"
 _LOGIN_PATH = "login.login"
 _CAMERAS_PATH = "cameras.get_visible"
-_IMAGE_PATH = "get_image"
+_IMAGE_PATH = "cameras.get_image"
 _EVENT_PATH = "get_cuepoint"
 
 class Dropcam(object):
@@ -112,12 +112,16 @@ class Camera(object):
         self.__dict__.update(params)
     
     def _request(self, path, params):
-        base_url = "/".join([_NEXUS_BASE, path])
+        base_url = "/".join([_API_BASE, _API_PATH, path])
         request_url = "?".join([base_url, urlencode(params)])
         request = urllib2.Request(request_url)
         if self.cookie:
             request.add_header('cookie', self.cookie)
-        return urllib2.urlopen(request)
+        try:
+            return urllib2.urlopen(request)
+        except urllib2.HTTPError, e:
+            print "Bad url: %s" % request_url
+            raise
     
     def events(self, start, end):
         """
