@@ -69,7 +69,6 @@ class Dropcam(object):
     def _request(self, path, params):
         base_url = "/".join([_API_BASE, _API_PATH, path])
         request_url = "?".join([base_url, urlencode(params)])
-        print request_url
         request = urllib2.Request(request_url)
         if self.cookie:
             request.add_header('cookie', self.cookie)
@@ -91,7 +90,6 @@ class Dropcam(object):
         params = dict(group_cameras=True)
         response = self._request(_CAMERAS_PATH, params)
         data = json.load(response)
-        print data
         items = data.get('items')
         for item in items:
           for params in item.get('owned'):
@@ -116,7 +114,6 @@ class Camera(object):
     def _request(self, path, params):
         base_url = "/".join([_API_BASE, _API_PATH, path])
         request_url = "?".join([base_url, urlencode(params)])
-        print request_url
         request = urllib2.Request(request_url)
         if self.cookie:
             request.add_header('cookie', self.cookie)
