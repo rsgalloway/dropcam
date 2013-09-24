@@ -69,6 +69,7 @@ class Dropcam(object):
     def _request(self, path, params):
         base_url = "/".join([_API_BASE, _API_PATH, path])
         request_url = "?".join([base_url, urlencode(params)])
+        print request_url
         request = urllib2.Request(request_url)
         if self.cookie:
             request.add_header('cookie', self.cookie)
@@ -90,9 +91,10 @@ class Dropcam(object):
         params = dict(group_cameras=True)
         response = self._request(_CAMERAS_PATH, params)
         data = json.load(response)
+        print data
         items = data.get('items')
         for item in items:
-            params = item.get('owned')[0]
+          for params in item.get('owned'):
             params.update(cookie=self.cookie)
             cameras.append(Camera(params))
         return cameras
@@ -114,6 +116,7 @@ class Camera(object):
     def _request(self, path, params):
         base_url = "/".join([_API_BASE, _API_PATH, path])
         request_url = "?".join([base_url, urlencode(params)])
+        print request_url
         request = urllib2.Request(request_url)
         if self.cookie:
             request.add_header('cookie', self.cookie)
@@ -143,7 +146,7 @@ class Camera(object):
         Requests a camera image, returns response object.
         
         :param width: image width or X resolution
-        :param time: time of image capture (in seconds from ecoch)
+        :param time: time of image capture (in seconds from epoch)
         """
         params = dict(uuid=self.uuid, width=width)
         if time:
@@ -156,7 +159,7 @@ class Camera(object):
 
         :param path: file path to save image
         :param width: image width or X resolution
-        :param time: time of image capture (in seconds from ecoch)
+        :param time: time of image capture (in seconds from epoch)
         """
         f = open(path, "wb")
         response = self.get_image(width, time)
