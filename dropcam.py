@@ -92,7 +92,7 @@ class Dropcam(object):
         data = json.load(response)
         items = data.get('items')
         for item in items:
-            params = item.get('owned')[0]
+          for params in item.get('owned'):
             params.update(cookie=self.cookie)
             cameras.append(Camera(params))
         return cameras
@@ -143,7 +143,7 @@ class Camera(object):
         Requests a camera image, returns response object.
         
         :param width: image width or X resolution
-        :param time: time of image capture (in seconds from ecoch)
+        :param time: time of image capture (in seconds from epoch)
         """
         params = dict(uuid=self.uuid, width=width)
         if time:
@@ -156,7 +156,7 @@ class Camera(object):
 
         :param path: file path to save image
         :param width: image width or X resolution
-        :param time: time of image capture (in seconds from ecoch)
+        :param time: time of image capture (in seconds from epoch)
         """
         f = open(path, "wb")
         response = self.get_image(width, time)
