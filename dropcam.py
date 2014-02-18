@@ -53,6 +53,12 @@ _CAMERAS_PATH = "cameras.get_visible"
 _IMAGE_PATH = "cameras.get_image"
 _EVENT_PATH = "get_cuepoint"
 
+class ConnectionError(IOError):
+    """
+    Exception used to indicate issues with connectivity or HTTP
+    requests/responses
+    """
+
 class Dropcam(object):
     def __init__(self, username, password):
         """
@@ -148,7 +154,18 @@ class Camera(object):
         params = dict(uuid=self.uuid, width=width)
         if time:
             params.update(time=time)
-        return self._request(_IMAGE_PATH, params)
+        response = self._request(_IMAGE_PATH, params)
+
+        if (
+            response.code != 200
+            or not int(response.headers.getheader('content-length', 0))
+        ):
+            # Either a connection error or empty image sent with code 200
+            raise ConnectionError(
+                'Camera image is not available or camera is turned off',
+            )
+
+        return response
 
     def save_image(self, path, width=720, time=None):
         """
