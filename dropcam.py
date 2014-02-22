@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ---------------------------------------------------------------------------------------------
-# Copyright (c) 2012-2013, Ryan Galloway (ryan@rsgalloway.com)
+# Copyright (c) 2012-2014, Ryan Galloway (ryan@rsgalloway.com)
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -34,24 +34,21 @@
 
 import os
 import sys
+import time
+import logging
 import urllib2
 import cookielib
 import simplejson as json
 from urllib import urlencode
 
 __doc__ = """
-An unofficial Dropcam Python API.
+Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
 
-_NEXUS_BASE = "https://nexusapi.dropcam.com"
-_API_BASE = "https://www.dropcam.com"
-_API_PATH = "api/v1"
-_LOGIN_PATH = "login.login"
-_CAMERAS_PATH = "cameras.get_visible"
-_IMAGE_PATH = "cameras.get_image"
-_EVENT_PATH = "get_cuepoint"
+logging.basicConfig()
+log = logging.getLogger("dropcam")
 
 class ConnectionError(IOError):
     """
@@ -59,7 +56,34 @@ class ConnectionError(IOError):
     requests/responses
     """
 
+def _request(path, params, cookie=None):
+    """
+    Dropcam http request function.
+    """
+    request_url = "?".join([path, urlencode(params)])
+    request = urllib2.Request(request_url)
+    if cookie:
+        request.add_header('cookie', cookie)
+    try:
+        return urllib2.urlopen(request)
+    except urllib2.HTTPError:
+        log.error("Bad URL: %s" % request_url)
+        raise
+
 class Dropcam(object):
+
+    NEXUS_BASE = "https://nexusapi.dropcam.com"
+    API_BASE = "https://www.dropcam.com"
+    API_PATH = "api/v1"
+
+    LOGIN_PATH =  "/".join([API_BASE, API_PATH, "login.login"])
+    CAMERAS_GET =  "/".join([API_BASE, API_PATH, "cameras.get"])
+    CAMERAS_UPDATE =  "/".join([API_BASE, API_PATH, "cameras.update"])
+    CAMERAS_GET_VISIBLE =  "/".join([API_BASE, API_PATH, "cameras.get_visible"])
+    CAMERAS_GET_IMAGE_PATH = "/".join([API_BASE, API_PATH, "cameras.get_image"])
+    EVENT_PATH =  "/".join([NEXUS_BASE, "get_cuepoint"])
+    EVENT_GET_CLIP_PATH = "/".join([NEXUS_BASE, "get_event_clip"])
+
     def __init__(self, username, password):
         """
         Creates a new dropcam API instance.
@@ -67,94 +91,82 @@ class Dropcam(object):
         :param username: Dropcam account username.
         :param password: Dropcam account password.
         """
-        self.username = username
-        self.password = password
+        self.__username = username
+        self.__password = password
         self.cookie = None
         self._login()
 
-    def _request(self, path, params):
-        base_url = "/".join([_API_BASE, _API_PATH, path])
-        request_url = "?".join([base_url, urlencode(params)])
-        request = urllib2.Request(request_url)
-        if self.cookie:
-            request.add_header('cookie', self.cookie)
-        return urllib2.urlopen(request)
-
     def _login(self):
-        params = dict(username=self.username, password=self.password)
-        response = self._request(_LOGIN_PATH, params)
+        params = dict(username=self.__username, password=self.__password)
+        response = _request(self.LOGIN_PATH, params)
         self.cookie = response.headers.get('Set-Cookie')
 
     def cameras(self):
         """
-        Returns a list of dropcam Camera objects attached to
-        this account.
+        :returns: list of Camera class objects
         """
         if not self.cookie:
             self._login()
         cameras = []
         params = dict(group_cameras=True)
-        response = self._request(_CAMERAS_PATH, params)
+        response = _request(self.CAMERAS_GET_VISIBLE, params, self.cookie)
         data = json.load(response)
         items = data.get('items')
         for item in items:
-          for params in item.get('owned'):
-            params.update(cookie=self.cookie)
-            cameras.append(Camera(params))
+            for params in item.get('owned'):
+                cameras.append(Camera(self, params))
         return cameras
 
 class Event(object):
-    def __init__(self, params):
+    def __init__(self, camera, params):
         """
         :param params: Dictionary of dropcam event attributes.
         """
+        self.camera = camera
         self.__dict__.update(params)
 
 class Camera(object):
-    def __init__(self, params):
+    def __init__(self, dropcam, params):
         """
         :param params: Dictionary of dropcam camera attributes.
+        :returns: addinfourl file-like object
+        :raises: urllib2.HTTPError, urllib2.URLError
         """
+        self.dropcam = dropcam
         self.__dict__.update(params)
     
-    def _request(self, path, params):
-        base_url = "/".join([_API_BASE, _API_PATH, path])
-        request_url = "?".join([base_url, urlencode(params)])
-        request = urllib2.Request(request_url)
-        if self.cookie:
-            request.add_header('cookie', self.cookie)
-        try:
-            return urllib2.urlopen(request)
-        except urllib2.HTTPError, e:
-            print "Bad url: %s" % request_url
-            raise
-    
-    def events(self, start, end):
+    def events(self, start, end=None):
         """
         Returns a list of camera events for a given time period:
 
         :param start: start time in seconds since epoch
-        :param end: end time in seconds since epoch
+        :param end: end time in seconds since epoch (defaults to current time)
+        :returns: list of Event class objects
         """
+        start = int(start)
+        if end is None:
+            end = int(time.time())
         events = []
         params = dict(uuid=self.uuid, start_time=start, end_time=end, human=True)
-        response = self._request(_EVENT_PATH, params)
+        response = _request(Dropcam.EVENT_PATH, params, self.dropcam.cookie)
         items = json.load(response)
         for item in items:
-            events.append(Event(item))
+            events.append(Event(self, item))
         return events
 
-    def get_image(self, width=720, time=None):
+    def get_image(self, width=720, seconds=None):
         """
         Requests a camera image, returns response object.
         
         :param width: image width or X resolution
-        :param time: time of image capture (in seconds from epoch)
+        :param seconds: time of image capture (in seconds from epoch)
+        :returns: response object
+        :raises: ConnectionError
         """
         params = dict(uuid=self.uuid, width=width)
-        if time:
-            params.update(time=time)
-        response = self._request(_IMAGE_PATH, params)
+        if seconds:
+            params.update(time=seconds)
+        response = _request(Dropcam.CAMERAS_GET_IMAGE_PATH, params, self.dropcam.cookie)
 
         if (
             response.code != 200
@@ -167,15 +179,28 @@ class Camera(object):
 
         return response
 
-    def save_image(self, path, width=720, time=None):
+    def save_image(self, path, width=720, seconds=None):
         """
         Saves a camera image to disc. 
 
         :param path: file path to save image
         :param width: image width or X resolution
-        :param time: time of image capture (in seconds from epoch)
+        :param seconds: time of image capture (in seconds from epoch)
+        :raises: ConnectionError
         """
         f = open(path, "wb")
-        response = self.get_image(width, time)
+        response = self.get_image(width, seconds)
         f.write(response.read())
         f.close()
+
+if __name__ == "__main__":
+    d = Dropcam(os.getenv("DROPCAM_USERNAME"), 
+                os.getenv("DROPCAM_PASSWORD"))
+    try:
+        for i, cam in enumerate(d.cameras()):
+            print "saving image on", cam.title
+            cam.save_image("dropcam.%d.jpg" % i)
+            s = int(time.time() - (60 * 60 * 24 * 7))
+            print cam.events(s)
+    except Exception, err:
+        print err

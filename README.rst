@@ -1,21 +1,24 @@
 Unofficial Python API for Dropcam cameras.
 
+Please note that this API could break if Dropcam updates their service.
+
 Usage
 -----
 
 Basic usage ::
 
     >>> from dropcam import Dropcam
-    >>> d = Dropcam(username, password)
-    >>> c = d.cameras()[0]
-    >>> c.save_image("image.jpg")
+    >>> d = Dropcam(os.getenv("DROPCAM_USERNAME"), 
+                    os.getenv("DROPCAM_PASSWORD"))
+    >>> for i, cam in enumerate(d.cameras()):
+    ...     cam.save_image("camera.%d.jpg" % i)
 
 Installation
 ------------
 
 Using easy install ::
 
-    $ easy_install dropcam
+    $ pip install dropcam
 
 Or from source ::
 
