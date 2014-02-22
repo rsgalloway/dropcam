@@ -35,7 +35,7 @@
 from distutils.core import setup
 setup(
     name='dropcam',
-    version='0.1.2',
+    version='0.2.0',
     description='Unofficial Dropcam Python API.',
     author='Ryan Galloway',
     author_email='ryan@rsgalloway.com',
