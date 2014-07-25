@@ -35,6 +35,7 @@
 import os
 import sys
 import time
+import json
 import logging
 import urllib2
 import cookielib
@@ -70,6 +71,27 @@ def _request(path, params, cookie=None):
         log.error("Bad URL: %s" % request_url)
         raise
 
+def _request_post(request_url, data, cookie, uuid):
+    """
+    Dropcam http post request function.
+    """
+
+    data = json.dumps(data)
+    clen = len(data)
+    referer = "/".join([Dropcam.API_BASE, 'watch', uuid])
+
+    req = urllib2.Request(request_url)
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('Content-Length', clen)
+    req.add_header('Referer', referer)
+    req.add_header('cookie', cookie)
+
+    try:
+        return urllib2.urlopen(req, data)
+    except urllib2.HTTPError:
+        log.error("Bad URL: %s" % request_url)
+        raise
+
 class Dropcam(object):
 
     NEXUS_BASE = "https://nexusapi.dropcam.com"
@@ -83,6 +105,7 @@ class Dropcam(object):
     CAMERAS_GET_IMAGE_PATH = "/".join([API_BASE, API_PATH, "cameras.get_image"])
     EVENT_PATH =  "/".join([NEXUS_BASE, "get_cuepoint"])
     EVENT_GET_CLIP_PATH = "/".join([NEXUS_BASE, "get_event_clip"])
+    PROPERTIES_PATH = "/".join([API_BASE, "app/cameras/properties"])
 
     def __init__(self, username, password):
         """
@@ -134,7 +157,31 @@ class Camera(object):
         """
         self.dropcam = dropcam
         self.__dict__.update(params)
-    
+
+    def set_property(self, name, value):
+        """
+        Changes a property on the camera
+
+        :param name: the name of the property to change
+        :param value: the value to change the property to
+
+        Examples:
+            irled.state: auto_on / always_on / always_off
+            streaming.enabled: true / false
+            streaming.params.hd: true / false
+            audio.enabled: true / false
+            statusled.enabled: true / false
+        """
+        url = "/".join([Dropcam.PROPERTIES_PATH, self.uuid])
+
+        data = {
+            'camera_uuid':self.uuid, 
+            'name':name, 
+            'value':value
+        }
+
+        return _request_post(url, data, self.dropcam.cookie, self.uuid)
+
     def events(self, start, end=None):
         """
         Returns a list of camera events for a given time period:
