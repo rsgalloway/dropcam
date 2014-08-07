@@ -46,6 +46,7 @@ Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
+__version__ = "0.3.0"
 
 logging.basicConfig()
 log = logging.getLogger("dropcam")
@@ -157,6 +158,9 @@ class Camera(object):
         self.dropcam = dropcam
         self.__dict__.update(params)
 
+    def __repr__(self):
+        return "<dropcam.Camera '%s'>" % self.title
+
     def set_property(self, name, value):
         """
         Changes a property on the camera
@@ -179,7 +183,9 @@ class Camera(object):
             'value':value
         }
 
-        return _request_post(url, data, self.dropcam.cookie, self.uuid)
+        resp = _request_post(url, data, self.dropcam.cookie, self.uuid)
+        if not resp.getcode() in (200, ):
+            log.error("Error setting property: %s" % resp.msg)
 
     def events(self, start, end=None):
         """

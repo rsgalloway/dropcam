@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ---------------------------------------------------------------------------------------------
-# Copyright (c) 2012-2013, Ryan Galloway (ryan@rsgalloway.com)
+# Copyright (c) 2012-2014, Ryan Galloway (ryan@rsgalloway.com)
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -33,12 +33,12 @@
 # ---------------------------------------------------------------------------------------------
 
 from distutils.core import setup
+from dropcam import __version__, __doc__, __author__
 setup(
     name='dropcam',
-    version='0.2.0',
-    description='Unofficial Dropcam Python API.',
-    author='Ryan Galloway',
-    author_email='ryan@rsgalloway.com',
+    version=__version__,
+    description=__doc__,
+    author=__author__,
     url='http://github.com/rsgalloway/dropcam',
     py_modules=['dropcam'],
 )
