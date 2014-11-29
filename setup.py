@@ -34,6 +34,13 @@
 
 from distutils.core import setup
 from dropcam import __version__, __doc__, __author__
+
+def get_deps():
+    try:
+        import json; return []
+    except ImportError:
+        return ['simplejson']
+
 setup(
     name='dropcam',
     version=__version__,
@@ -41,4 +48,5 @@ setup(
     author=__author__,
     url='http://github.com/rsgalloway/dropcam',
     py_modules=['dropcam'],
+    install_requires=get_deps()
 )

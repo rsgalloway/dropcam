@@ -38,15 +38,18 @@ import time
 import logging
 import urllib2
 import cookielib
-import simplejson as json
 from urllib import urlencode
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 __doc__ = """
 Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 logging.basicConfig()
 log = logging.getLogger("dropcam")
