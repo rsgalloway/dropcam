@@ -105,7 +105,7 @@ class Dropcam(object):
     CAMERAS_GET =  "/".join([API_BASE, API_PATH, "cameras.get"])
     CAMERAS_UPDATE =  "/".join([API_BASE, API_PATH, "cameras.update"])
     CAMERAS_GET_VISIBLE =  "/".join([API_BASE, API_PATH, "cameras.get_visible"])
-    CAMERAS_GET_IMAGE_PATH = "/".join([API_BASE, API_PATH, "cameras.get_image"])
+    CAMERAS_GET_IMAGE_PATH = "/".join([NEXUS_BASE, "get_image"])
     EVENT_PATH =  "/".join([NEXUS_BASE, "get_cuepoint"])
     EVENT_GET_CLIP_PATH = "/".join([NEXUS_BASE, "get_event_clip"])
     PROPERTIES_PATH = "/".join([API_BASE, "app/cameras/properties"])
@@ -125,7 +125,8 @@ class Dropcam(object):
     def _login(self):
         params = dict(username=self.__username, password=self.__password)
         response = _request(self.LOGIN_PATH, params)
-        self.cookie = response.headers.get('Set-Cookie')
+        cookie = response.headers.get('Set-Cookie')
+        self.cookie = cookie.split(';')[0]  # Only return the 'website_2' Cookie.
 
     def cameras(self):
         """
