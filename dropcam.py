@@ -203,7 +203,7 @@ class Camera(object):
         if end is None:
             end = int(time.time())
         events = []
-        params = dict(uuid=self.uuid, start_time=start, end_time=end, human=True)
+        params = dict(uuid=self.uuid, start_time=start, end_time=end)
         response = _request(Dropcam.EVENT_PATH, params, self.dropcam.cookie)
         items = json.load(response)
         for item in items:
