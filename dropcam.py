@@ -129,7 +129,7 @@ class Dropcam(object):
 
         # dropcam returns 200 even when it's an auth fail.
         # Still checking both to be proper.
-        if response.getcode() not in (200, 201) or data.get('status') not in (200, 201):
+        if response.getcode() not in (200, 201) or data.get('status') not in (0, 200, 201):
             print("login failed and returned status code %s. login json: %s"
                 % (response.getcode(), json.dumps(data)))
             raise Exception
