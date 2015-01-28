@@ -125,6 +125,14 @@ class Dropcam(object):
     def _login(self):
         params = dict(username=self.__username, password=self.__password)
         response = _request(self.LOGIN_PATH, params)
+        data = json.load(response)
+
+        # dropcam returns 200 even when it's an auth fail.
+        # Still checking both to be proper.
+        if response.getcode() not in (200, 201) or data.get('status') not in (200, 201):
+            print("login failed and returned status code %s. login json: %s"
+                % (response.getcode(), json.dumps(data)))
+            raise Exception
         cookie = response.headers.get('Set-Cookie')
         self.cookie = cookie.split(';')[0]  # Only return the 'website_2' Cookie.
 
