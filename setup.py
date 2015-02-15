@@ -36,10 +36,12 @@ from distutils.core import setup
 from dropcam import __version__, __doc__, __author__
 
 def get_deps():
+    deps = ["requests"]
     try:
-        import json; return []
+        import json
     except ImportError:
-        return ['simplejson']
+        deps.append("simplejson")
+    return deps
 
 setup(
     name='dropcam',

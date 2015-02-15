@@ -37,8 +37,10 @@ import sys
 import time
 import logging
 import urllib2
+import requests
 import cookielib
 from urllib import urlencode
+
 try:
     import simplejson as json
 except ImportError:
@@ -49,10 +51,11 @@ Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 
 logging.basicConfig()
 log = logging.getLogger("dropcam")
+
 
 class ConnectionError(IOError):
     """
@@ -60,50 +63,34 @@ class ConnectionError(IOError):
     requests/responses
     """
 
-def _request(path, params, cookie=None):
+
+def request(url, params, cookie=None, method="GET"):
     """
     Dropcam http request function.
     """
-    request_url = "?".join([path, urlencode(params)])
-    request = urllib2.Request(request_url)
-    if cookie:
-        request.add_header('cookie', cookie)
-    try:
-        return urllib2.urlopen(request)
-    except urllib2.HTTPError:
-        log.error("Bad URL: %s" % request_url)
-        raise
 
-def _request_post(request_url, data, cookie, uuid=None):
-    """
-    Dropcam http post request function.
-    """
+    headers = {
+        "Cookie": cookie,
+        "Referer": Dropcam.API_BASE,
+        "Content-Type": "application/json",
+        "Content-Length": len(str(params))
+    }
 
-    clen = len(str(data))
-    data = urlencode(data)
-    req = urllib2.Request(request_url)
+    resp = {
+        "GET": requests.get,
+        "POST": requests.post
+    }.get(method)(url, params=params, headers=headers)
 
-    if uuid:
-        req.add_header('Referer', "/".join([Dropcam.API_BASE, 'watch', uuid]))
-    else:
-        req.add_header('Referer', Dropcam.API_BASE)
+    if not resp.ok:
+        raise Exception(resp.reason)
 
-    if cookie:
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('Content-Length', clen)
-        req.add_header('cookie', cookie)
-
-    try:
-        return urllib2.urlopen(req, data=data)
-    except urllib2.HTTPError:
-        log.error("Bad URL: %s" % request_url)
-        raise
+    return resp
 
 class Dropcam(object):
 
     NEXUS_BASE = "https://nexusapi.dropcam.com"
     API_BASE = "https://www.dropcam.com"
-    API_PATH = "api/v1"
+    API_PATH = "api"
 
     LOGIN_PATH =  "/".join([API_BASE, API_PATH, "login.login"])
     CAMERAS_GET =  "/".join([API_BASE, API_PATH, "cameras.get"])
@@ -124,37 +111,28 @@ class Dropcam(object):
         self.__username = username
         self.__password = password
         self.cookie = None
-        self._login()
+        self.login()
 
-    def _login(self):
+    def login(self):
         params = dict(username=self.__username, password=self.__password)
-        response = _request_post(self.LOGIN_PATH, params, cookie=None)
-        data = json.load(response)
-
-        # dropcam returns 200 even when it's an auth fail.
-        # Still checking both to be proper.
-        if response.getcode() not in (200, 201) or data.get('status') not in (0, 200, 201):
-            print("login failed and returned status code %s. login json: %s"
-                % (response.getcode(), json.dumps(data)))
-            raise Exception
-        cookie = response.headers.get('Set-Cookie')
-        self.cookie = cookie.split(';')[0]  # Only return the 'website_2' Cookie.
+        response = json.loads(request(self.LOGIN_PATH, params, method="POST").content)
+        self.cookie = "website_2=%s" % response.get("items")[0].get("session_token")
 
     def cameras(self):
         """
         :returns: list of Camera class objects
         """
-        if not self.cookie:
-            self._login()
-        cameras = []
         params = dict(group_cameras=True)
-        response = _request(self.CAMERAS_GET_VISIBLE, params, self.cookie)
-        data = json.load(response)
-        items = data.get('items')
+        response = json.loads(request(self.CAMERAS_GET_VISIBLE, params, self.cookie).content)
+        if response.get("status") != 0:
+            raise Exception(response.get("status"), response.get("status_detail"))
+        items = response.get('items')
+        cameras = []
         for item in items:
             for params in item.get('owned'):
                 cameras.append(Camera(self, params))
         return cameras
+
 
 class Event(object):
     def __init__(self, camera, params):
@@ -163,6 +141,7 @@ class Event(object):
         """
         self.camera = camera
         self.__dict__.update(params)
+
 
 class Camera(object):
     def __init__(self, dropcam, params):
@@ -194,15 +173,12 @@ class Camera(object):
         url = "/".join([Dropcam.PROPERTIES_PATH, self.uuid])
 
         data = {
-            'camera_uuid':self.uuid, 
-            'name':name, 
-            'value':value
+            'camera_uuid': self.uuid, 
+            'name': name, 
+            'value': value
         }
 
-        resp = _request_post(url, data, self.dropcam.cookie, self.uuid)
-
-        if not resp.getcode() in (200, ):
-            log.error("Error setting property: %s" % resp.msg)
+        request(url, data, self.dropcam.cookie, method="POST")
 
     def events(self, start, end=None):
         """
@@ -217,8 +193,7 @@ class Camera(object):
             end = int(time.time())
         events = []
         params = dict(uuid=self.uuid, start_time=start, end_time=end)
-        response = _request(Dropcam.EVENT_PATH, params, self.dropcam.cookie)
-        items = json.load(response)
+        response = json.loads(request(Dropcam.EVENT_PATH, params, self.dropcam.cookie).content)
         for item in items:
             events.append(Event(self, item))
         return events
@@ -235,11 +210,11 @@ class Camera(object):
         params = dict(uuid=self.uuid, width=width)
         if seconds:
             params.update(time=seconds)
-        response = _request(Dropcam.CAMERAS_GET_IMAGE_PATH, params, self.dropcam.cookie)
+        response = request(Dropcam.CAMERAS_GET_IMAGE_PATH, params, self.dropcam.cookie)
 
         if (
-            response.code != 200
-            or not int(response.headers.getheader('content-length', 0))
+            response.status_code != 200
+            or not int(response.headers.get('content-length', 0))
         ):
             # Either a connection error or empty image sent with code 200
             raise ConnectionError(
@@ -259,17 +234,24 @@ class Camera(object):
         """
         f = open(path, "wb")
         response = self.get_image(width, seconds)
-        f.write(response.read())
+        f.write(response.content)
         f.close()
 
+
 if __name__ == "__main__":
+
     d = Dropcam(os.getenv("DROPCAM_USERNAME"), 
                 os.getenv("DROPCAM_PASSWORD"))
+    
     try:
         for i, cam in enumerate(d.cameras()):
-            print "saving image on", cam.title
-            cam.save_image("dropcam.%d.jpg" % i)
-            s = int(time.time() - (60 * 60 * 24 * 7))
-            print cam.events(s)
+            print i, repr(cam.title),
+            if not cam.is_online:
+                print "offline, skipping"
+            else:
+                s = int(time.time() - (60 * 60 * 24 * 7))
+                print "saving image at time", s
+                cam.save_image("dropcam.%d.%d.jpg" % (i, s))
+
     except Exception, err:
         print err
