@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ---------------------------------------------------------------------------------------------
-# Copyright (c) 2012-2014, Ryan Galloway (ryan@rsgalloway.com)
+# Copyright (c) 2012-2015, Ryan Galloway (ryan@rsgalloway.com)
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,7 @@ Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 logging.basicConfig()
 log = logging.getLogger("dropcam")
@@ -74,23 +74,27 @@ def _request(path, params, cookie=None):
         log.error("Bad URL: %s" % request_url)
         raise
 
-def _request_post(request_url, data, cookie, uuid):
+def _request_post(request_url, data, cookie, uuid=None):
     """
     Dropcam http post request function.
     """
 
-    data = json.dumps(data)
-    clen = len(data)
-    referer = "/".join([Dropcam.API_BASE, 'watch', uuid])
-
+    clen = len(str(data))
+    data = urlencode(data)
     req = urllib2.Request(request_url)
-    req.add_header('Content-Type', 'application/json')
-    req.add_header('Content-Length', clen)
-    req.add_header('Referer', referer)
-    req.add_header('cookie', cookie)
+
+    if uuid:
+        req.add_header('Referer', "/".join([Dropcam.API_BASE, 'watch', uuid]))
+    else:
+        req.add_header('Referer', Dropcam.API_BASE)
+
+    if cookie:
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('Content-Length', clen)
+        req.add_header('cookie', cookie)
 
     try:
-        return urllib2.urlopen(req, data)
+        return urllib2.urlopen(req, data=data)
     except urllib2.HTTPError:
         log.error("Bad URL: %s" % request_url)
         raise
@@ -124,7 +128,7 @@ class Dropcam(object):
 
     def _login(self):
         params = dict(username=self.__username, password=self.__password)
-        response = _request(self.LOGIN_PATH, params)
+        response = _request_post(self.LOGIN_PATH, params, cookie=None)
         data = json.load(response)
 
         # dropcam returns 200 even when it's an auth fail.
@@ -196,6 +200,7 @@ class Camera(object):
         }
 
         resp = _request_post(url, data, self.dropcam.cookie, self.uuid)
+
         if not resp.getcode() in (200, ):
             log.error("Error setting property: %s" % resp.msg)
 
