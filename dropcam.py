@@ -49,7 +49,7 @@ Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 logging.basicConfig()
 log = logging.getLogger("dropcam")
