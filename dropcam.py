@@ -101,7 +101,7 @@ def _request_post(request_url, data, cookie, uuid=None):
 
 class Dropcam(object):
 
-    NEXUS_BASE = "https://nexusapi.dropcam.com"
+    NEXUS_BASE = "https://nexusapi.camera.home.nest.com"
     API_BASE = "https://www.dropcam.com"
     API_PATH = "api/v1"
 
