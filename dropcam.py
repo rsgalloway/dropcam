@@ -49,7 +49,7 @@ Unofficial Dropcam Python API.
 """
 
 __author__ = "Ryan Galloway <ryan@rsgalloway.com>"
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 logging.basicConfig()
 log = logging.getLogger("dropcam")
@@ -101,7 +101,7 @@ def _request_post(request_url, data, cookie, uuid=None):
 
 class Dropcam(object):
 
-    NEXUS_BASE = "https://nexusapi.dropcam.com"
+    NEXUS_BASE = "https://nexusapi.camera.home.nest.com"
     API_BASE = "https://www.dropcam.com"
     API_PATH = "api/v1"
 
